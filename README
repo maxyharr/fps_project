@@ -6,29 +6,54 @@ Default Projection Mode is Perspective
 ################################
 
 
-    1. extract the folder hw7 from the hw7.zip
-    2. run ~$ make && ./hw7
+    1. extract the folder fps_project from the fps_project.zip
+    2. run ~$ make && ./fps_project
 
+################################
+####        Gameplay        ####
+################################
+
+////////// OBJECTIVE //////////
+Beat the High Score
+
+
+//////////// STATS ///////////////
+Your Ammo is shown as "Ammo: (amount in gun) / (backup ammo)" in the bottom left
+Your HitPoints (Health) is shown as "HP: |||||||||||||||" The number of bars is how much life you have left
+Your score and the high score are in the TOP left
+The Hobo's HitPoints are shown in the Top Middle
+
+
+////////// POINTS //////////////
+Collect AutoKill (red box)      =  1000
+Collect Ammo Box (brown box)    =  400
+Kill Hobo                       =  100
 
 
 ################################
 ####        Controls        ####
 ################################
 
+MOVEMENT
+W-A-S-D
 
-////// CAMERA CONTROL //////////
+LOOK AROUND
+Move Mouse
 
-Strafe Camera Left/Right
-    A/a and D/d Keys
-    
-Move forward/backward
-    W/w and S/s Keys 
+SHOOT
+left click
 
-Look Camera Up/Down:
-    Up and Down Arrow Keys
+RELOAD
+R
 
-Look Camera left/right
-    Left and Right Arrow Keys
+MELEE ATTACK (when enemy's close)
+C
+
+AUTOKILL (when you pick up green box)
+G
+
+JUMP
+SpaceBar
 
 
 /////// LIGHT CONTROL ////////
