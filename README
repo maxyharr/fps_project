@@ -1,0 +1,54 @@
+3D Scene Instruction Manual
+Default Projection Mode is Perspective
+
+################################
+####        To build        ####
+################################
+
+
+    1. extract the folder hw7 from the hw7.zip
+    2. run ~$ make && ./hw7
+
+
+
+################################
+####        Controls        ####
+################################
+
+
+////// CAMERA CONTROL //////////
+
+Strafe Camera Left/Right
+    A/a and D/d Keys
+    
+Move forward/backward
+    W/w and S/s Keys 
+
+Look Camera Up/Down:
+    Up and Down Arrow Keys
+
+Look Camera left/right
+    Left and Right Arrow Keys
+
+
+/////// LIGHT CONTROL ////////
+
+Move light forward/backward
+    G/g and B/b keys
+
+Change elevation up and down
+    e and E keys
+
+/////////////////////////////////////////
+
+
+
+Close the window
+    ESC key
+    
+Reset View
+    '0' key
+
+Zoom out/in
+    'z'/'x' keys
+
