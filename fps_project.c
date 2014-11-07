@@ -79,7 +79,6 @@ int AMMO_BOX_TYPE = 1;
 double autoKillBoxX = 75, autoKillBoxZ = 75;
 int KILL_BOX_TYPE = 2;
 
-
 // health box
 int numHealths = 10;
 int health[10] = {0,0,0,0,0,0,0,0,0,0};
@@ -87,6 +86,7 @@ int showHealthBox = 0;
 double healthX, healthZ;
 int HEALTH_BOX_TYPE = 3;
 int showHealthAlert = 0;
+int healthCollected[] = {0,0,0,0,0,0,0,0,0,0};
 
 
 int initialized = 0;
@@ -110,7 +110,7 @@ int update_score;
 
 //CAMERA - angle of rotation - player constants
 float lastx, lasty;
-double xpos = 0, ypos = 0, zpos = 30, xrot = 100, yrot = 0, angle=0.0;
+double xpos = 0, ypos = 0, zpos = 30, xrot = 230, yrot = 0, angle=0.0;
     //bobble
 float walkbias, walkbiasangle;
 int isJumping; double jumpAngle = 0;
@@ -152,6 +152,7 @@ double ENEMY_MOVEMENT_SECS = 0.2;
 int ENEMY_MAX_HP = 20;
 int enemyHP = 20;
 int numEnemys = 20;
+double enemySpeed = 0.05;
 
 // houses locations
 int numHouses = 20;
@@ -820,8 +821,8 @@ void mouseMovementNoButtons(int x, int y) {
         double diffy=y-lasty; //check the difference between the current y and the last y position
         lastx=x; //set lastx to the current x position
         lasty=y; //set lasty to the current y position
-        xrot += diffy; //set the xrot to xrot with the addition of the difference in the y position
-        yrot += diffx;// set the xrot to yrot with the addition of the difference in the x position
+        xrot += diffy*0.5; //set the xrot to xrot with the addition of the difference in the y position
+        yrot += diffx*0.5;// set the xrot to yrot with the addition of the difference in the x position
         if (x >= windowWidth-10 || x <= 10 || y>= windowHeight-10 ||y <= 10) {
             isWarpingPointer = 1;
             glutWarpPointer(windowWidth/2, windowHeight/2);
@@ -829,6 +830,7 @@ void mouseMovementNoButtons(int x, int y) {
     } else {
         lastx = x;
         lasty = y;
+        memset(key_state, 0, 256 * sizeof(int));
         isWarpingPointer = 0;
     }
 }
@@ -840,8 +842,8 @@ void mouseMovementWithButtons(int x, int y) {
         int diffy=y-lasty; //check the difference between the current y and the last y position
         lastx=x; //set lastx to the current x position
         lasty=y; //set lasty to the current y position
-        xrot += (float) diffy; //set the xrot to xrot with the addition of the difference in the y position
-        yrot += (float) diffx;// set the xrot to yrot with the addition of the difference in the x position
+        xrot += (float) diffy*0.1; //set the xrot to xrot with the addition of the difference in the y position
+        yrot += (float) diffx*0.1;// set the xrot to yrot with the addition of the difference in the x position
         if (x >= windowWidth-10 || x <= 10 || y>= windowHeight-10 ||y <= 10) {
             isWarpingPointer = 1;
             glutWarpPointer(windowWidth/2, windowHeight/2);
@@ -849,6 +851,7 @@ void mouseMovementWithButtons(int x, int y) {
     } else {
         lastx = x;
         lasty = y;
+        memset(key_state, 0, 256 * sizeof(int));
         isWarpingPointer = 0;
     }
 }
@@ -1021,10 +1024,10 @@ void display()
 //        house(5, 0, i, 1.2, 1, 2, -85);
 //    }
     
-//    // Draw a couple of lights on the other side
-//    for (int i=-4; i<9; i=i+3){
-//        lightPole(2.5, 0, i, 0.1, 1, 0);
-//    }
+    // Draw a couple of lights on the other side
+    for (int i=-4; i<9; i=i+3){
+        lightPole(2.5, 0, i + 20, 0.1, 1, 0);
+    }
     
     // Draw trees everywhere
     for (int i=-100; i<100; i=i+4) {
@@ -1043,14 +1046,25 @@ void display()
     
     
     // ammo, autokill, and health boxes
-    if (ammoPresent)
+    if (ammoPresent) {
         ammobox(ammoX, 0, ammoZ, ammoXWidth, ammoHeight, ammoZWidth, AMMO_BOX_TYPE);
+        glRasterPos3d(ammoX,ammoHeight + 3,ammoZ);
+        Print("| | | AMMO | | | ");
+    }
     
-    if (showAutoKillBox)
+    
+    if (showAutoKillBox) {
         ammobox(autoKillBoxX, 0, autoKillBoxZ, ammoXWidth, ammoHeight, ammoZWidth, KILL_BOX_TYPE);
+        glRasterPos3d(autoKillBoxX,ammoHeight + 3,autoKillBoxZ);
+        Print("* * * BONUS * * * ");
+    }
     
-    if (showHealthBox)
+    if (showHealthBox) {
         ammobox(healthX, 0, healthZ, ammoXWidth, ammoHeight, ammoZWidth, HEALTH_BOX_TYPE);
+        glRasterPos3d(healthX,ammoHeight + 3,healthZ);
+        Print("+ + + HEALTH + + + ");
+    }
+
     
     // Draw a plot of land
     grass(-100, 0, -100, 200, 0, 200);
@@ -1542,8 +1556,8 @@ void update_func()
             posVec[1] = 0;
             posVec[2] = zpos - enemyPosZ;
             normalize(posVec);
-            enemyPosX += posVec[0]*0.15;
-            enemyPosZ += posVec[2]*0.15;
+            enemyPosX += posVec[0]*enemySpeed; //posVec[0]*0.15;
+            enemyPosZ += posVec[2]*enemySpeed; //posVec[2]*0.15;
         }
     }
     
@@ -1677,7 +1691,7 @@ void update_func()
         showScore = 1;
         
         if (totalAmmo + 50 < MAX_AMMO)
-            totalAmmo += 25;
+            totalAmmo += 50;
         else
             totalAmmo = MAX_AMMO;
         
@@ -1741,6 +1755,7 @@ void update_func()
     
     // health box collision detection
     if (fabs(xpos - healthX) < 2 && fabs(zpos - healthZ) < 2) {
+        health[0] = health[1] = health[2] = health[3] = health[4] = health[5] = health[6] = health[7] = health[8] = health[9] = 0;
         playerHP = 30;
         healthX = 10000;
         healthZ = 10000;
@@ -1765,43 +1780,55 @@ void update_func()
         }
     }
 
-    if (score > 2500)
+    if (score > 2500 && !healthCollected[0]) {
         health[0] = 1;
-    if (score > 5000){
+        healthCollected[0] = 1;
+    }
+    
+    if (score > 5000 && !healthCollected[1]){
         health[0] = 0;
         health[1] = 1;
+        healthCollected[1] = 1;
     }
-    if (score > 7500) {
+    if (score > 7500 && !healthCollected[2]) {
         health[1] = 0;
         health[2] = 1;
+        healthCollected[2] = 1;
     }
-    if (score > 10000) {
+    if (score > 10000 && !healthCollected[3]) {
         health[2] = 0;
         health[3] = 1;
+        healthCollected[3] = 1;
     }
-    if (score > 15000) {
+    if (score > 15000 && !healthCollected[4]) {
         health[3] = 0;
         health[4] = 1;
+        healthCollected[4] = 1;
     }
-    if (score > 20000) {
+    if (score > 20000 && !healthCollected[5]) {
         health[4] = 0;
         health[5] = 1;
+        healthCollected[5] = 1;
     }
-    if (score > 25000) {
+    if (score > 25000 && !healthCollected[6]) {
         health[5] = 0;
         health[6] = 1;
+        healthCollected[6] = 1;
     }
-    if (score > 30000) {
+    if (score > 30000 && !healthCollected[7]) {
         health[6] = 0;
         health[7] = 1;
+        healthCollected[7] = 1;
     }
-    if (score > 50000) {
+    if (score > 50000 && !healthCollected[8]) {
         health[7] = 0;
         health[8] = 1;
+        healthCollected[8] = 1;
     }
-    if (score > 70000) {
+    if (score > 70000 && !healthCollected[9]) {
         health[8] = 0;
         health[9] = 1;
+        healthCollected[9] = 1;
     }
     
     
