@@ -23,6 +23,7 @@
 #include <stdarg.h>
 #include <math.h>
 #include <time.h>
+#include <string.h>
 //  OpenGL with prototypes for glext
 #define GL_GLEXT_PROTOTYPES
 #ifdef __APPLE__
@@ -153,6 +154,7 @@ int ENEMY_MAX_HP = 20;
 int enemyHP = 20;
 int numEnemys = 20;
 double enemySpeed = 0.05;
+double updateSpeed;
 
 // houses locations
 int numHouses = 20;
@@ -264,6 +266,15 @@ static void Vertex(double th,double ph)
     glVertex3d(x,y,z);
 }
 
+
+static void updateEnemySpeed(int score) {
+    updateSpeed = (double) score;
+    // reduce multiple of 100 to between 0.0001 - 0.001
+    updateSpeed /= 100000;
+    updateSpeed *= 2;
+    enemySpeed += updateSpeed;
+    
+}
 
 static void enemy(double enemyX, double enemyY, double enemyZ, double Xwidth, double height, double Zwidth, double camX, double camZ) {
     double enemyLookAt[3], enemyToCamProj[3], upAux[3];
@@ -842,8 +853,8 @@ void mouseMovementWithButtons(int x, int y) {
         int diffy=y-lasty; //check the difference between the current y and the last y position
         lastx=x; //set lastx to the current x position
         lasty=y; //set lasty to the current y position
-        xrot += (float) diffy*0.1; //set the xrot to xrot with the addition of the difference in the y position
-        yrot += (float) diffx*0.1;// set the xrot to yrot with the addition of the difference in the x position
+        xrot += (float) diffy*0.5; //set the xrot to xrot with the addition of the difference in the y position
+        yrot += (float) diffx*0.5;// set the xrot to yrot with the addition of the difference in the x position
         if (x >= windowWidth-10 || x <= 10 || y>= windowHeight-10 ||y <= 10) {
             isWarpingPointer = 1;
             glutWarpPointer(windowWidth/2, windowHeight/2);
@@ -1049,7 +1060,7 @@ void display()
     if (ammoPresent) {
         ammobox(ammoX, 0, ammoZ, ammoXWidth, ammoHeight, ammoZWidth, AMMO_BOX_TYPE);
         glRasterPos3d(ammoX,ammoHeight + 3,ammoZ);
-        Print("| | | AMMO | | | ");
+        Print("| | | | AMMO | | | | ");
     }
     
     
@@ -1125,6 +1136,10 @@ void display()
     Print("HIGH SCORE: %d", highScore);
     glWindowPos2i(windowWidth/2 - 50, windowHeight-140);
     Print("Hobo HP: %d", enemyHP);
+    glWindowPos2i(windowWidth-170, windowHeight -20);
+    Print("Hobo Speed: %d", enemySpeed);
+    glWindowPos2i(windowWidth-170, windowHeight -40);
+    Print("update_speed: %d", updateSpeed);
     if (allowedToAutoKill) {
         glWindowPos2i(windowWidth/2 - 50, windowHeight-100);
         Print("Press G to AutoKill!");
@@ -1250,6 +1265,7 @@ void key_down(unsigned char ch, int x, int y)
         else if (ch == 'g' && allowedToAutoKill) {
             update_score = 300;
             score += update_score;
+            updateEnemySpeed(update_score);
             showScore = 1;
             
             enemyDead = 1;
@@ -1496,6 +1512,7 @@ void update_func()
     if (enemyDead) {
         update_score = 100;
         score += update_score;
+        updateEnemySpeed(update_score);
         showScore = 1;
         
         enemyHP = ENEMY_MAX_HP;
@@ -1582,6 +1599,7 @@ void update_func()
     if (fabs(xpos-autoKillBoxX) < 2 && fabs(zpos-autoKillBoxZ) < 2) {
         update_score = 1000;
         score += update_score;
+        updateEnemySpeed(update_score);
         showScore = 1;
         
         showAutoKillBox = 0;
@@ -1688,6 +1706,7 @@ void update_func()
     if (fabs(ammoX - xpos) < 2 && fabs(ammoZ - zpos) < 2) {
         update_score = 400;
         score += update_score;
+        updateEnemySpeed(update_score);
         showScore = 1;
         
         if (totalAmmo + 50 < MAX_AMMO)
