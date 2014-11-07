@@ -79,6 +79,16 @@ int AMMO_BOX_TYPE = 1;
 double autoKillBoxX = 75, autoKillBoxZ = 75;
 int KILL_BOX_TYPE = 2;
 
+
+// health box
+int numHealths = 10;
+int health[10] = {0,0,0,0,0,0,0,0,0,0};
+int showHealthBox = 0;
+double healthX, healthZ;
+int HEALTH_BOX_TYPE = 3;
+int showHealthAlert = 0;
+
+
 int initialized = 0;
 
 // Window Sizing
@@ -96,13 +106,16 @@ double showScoreTimer = 0;
 double SHOW_SCORE_SECONDS = 2;
 int update_score;
 
+
+
 //CAMERA - angle of rotation - player constants
 float lastx, lasty;
 double xpos = 0, ypos = 0, zpos = 30, xrot = 100, yrot = 0, angle=0.0;
     //bobble
 float walkbias, walkbiasangle;
 int isJumping; double jumpAngle = 0;
-double jumpHeight = 1.8;
+double JUMP_HEIGHT = 3; //1.8;
+double JUMP_SPEED = 0.14;
 int playerHP = 30;
 int enemyTouchingPlayer = 0;
 int walkingInNegXDirection, walkingInNegZDirection, walkingInPosXDirection, walkingInPosZDirection;
@@ -337,6 +350,8 @@ static void ammobox(double ammox, double ammoy, double ammoz, double ammoxwidth,
         glColor3f(1,1,1);
     else if(box_type == KILL_BOX_TYPE)
         glColor3f(1, 0.3,0);
+    else if (box_type == HEALTH_BOX_TYPE)
+        glColor3f(0.1,0.1,0.1);
     
     //crate top
     glTexCoord2f(0,0); glVertex3f(-1, 2, -1);
@@ -986,15 +1001,13 @@ void display()
         }
     }
     
+    for (int i=1; i<numHouses; i++) {
+        house(houseX[i], 0, houseZ[i], houseXWidth, houseHeight, houseZWidth, 0);
+    }
 
     
     //  Flat or smooth shading
     glShadeModel(smooth ? GL_SMOOTH : GL_FLAT);
-    
-//    // Draw a couple houses on the left
-//    for (int i=-3; i< 9; i=i+3){
-//        house(-5, 0, i, 1, 1, 2, 85);
-//    }
     
 //    // Draw a couple of lights in the scene
 //    for (int i=-3; i<9; i=i+3){
@@ -1011,24 +1024,31 @@ void display()
 //        lightPole(2.5, 0, i, 0.1, 1, 0);
 //    }
     
-//    // Draw trees everywhere
-//    for (int i=-9; i<10; i=i+3) {
-//        tree(-9.5, 0, i, TREE_WIDTH, TREE_HEIGHT, -20);
-//        tree(9.5, 0, i, TREE_WIDTH, TREE_HEIGHT, 40);
-//        if (i < 8 && i > -8)
-//            tree(i, 0, -9.5, TREE_WIDTH, TREE_HEIGHT, 30);
-//    }
+    // Draw trees everywhere
+    for (int i=-100; i<100; i=i+4) {
+        tree(-100, 0, i, TREE_WIDTH, TREE_HEIGHT, -20);
+        tree(100, 0, i, TREE_WIDTH, TREE_HEIGHT, 40);
+        if (i < 8 && i > -8)
+            tree(i, 0, -9.5, TREE_WIDTH, TREE_HEIGHT, 30);
+    }
     
     // Draw a giant church-like house in the back
     houseX[0] = houseY[0] = houseZ[0] = 0;
     house(houseX[0], houseY[0], houseZ[0], houseXWidth, houseHeight, houseZWidth, 0);
-    lightPole(-1.8, 0, 3.5, 0.3, 3, 0);
+    lightPole(-3, 0, 8, 0.3, 3, 0);
     
+    
+    
+    
+    // ammo, autokill, and health boxes
     if (ammoPresent)
         ammobox(ammoX, 0, ammoZ, ammoXWidth, ammoHeight, ammoZWidth, AMMO_BOX_TYPE);
     
     if (showAutoKillBox)
         ammobox(autoKillBoxX, 0, autoKillBoxZ, ammoXWidth, ammoHeight, ammoZWidth, KILL_BOX_TYPE);
+    
+    if (showHealthBox)
+        ammobox(healthX, 0, healthZ, ammoXWidth, ammoHeight, ammoZWidth, HEALTH_BOX_TYPE);
     
     // Draw a plot of land
     grass(-100, 0, -100, 200, 0, 200);
@@ -1096,6 +1116,10 @@ void display()
     if (showScore) {
         glWindowPos2i(windowWidth/2 - 50, windowHeight- 120);
         Print("+ %d", update_score);
+    }
+    if (showHealthAlert) {
+        glWindowPos2i(windowWidth/2 - 70, windowHeight- 80);
+        Print("BLACK HEALTH BOX DROPPED!!!", update_score);
     }
 //    Print("numLasers: %d", numLasers);
 //    glWindowPos2i(10, 90);
@@ -1229,12 +1253,21 @@ void key_up(unsigned char ch, int x, int y)
  */
 void update_func()
 {
-    
     if (playerHP == 0) {
         updateHighScore();
         exit(0);
     }
-
+    
+    //out of bounds handling
+    if (xpos >= 100)
+        xpos = 99.999;
+    if (xpos <= -100)
+        xpos = -99.999;
+    if (zpos >= 100)
+        zpos = 99.999;
+    if (zpos <= -100)
+        zpos = -99.999;
+        
     
     if ((int)yrot%360 > 270 && (int)yrot%360 < 360) {
         if (key_state['w']) {
@@ -1423,11 +1456,17 @@ void update_func()
         readInHighScore();
         glutWarpPointer(windowWidth/2+117, windowHeight/2-90);
         initialized = 1;
+        
+        houseX[1] = -90; houseX[2] = -70; houseX[3] = 45; houseX[4] = 45; houseX[5] = 10;
+        houseZ[1] = -75; houseZ[2] = -90; houseZ[3] = 45; houseZ[4] = 60; houseZ[5] = 50;
+        
+        houseX[6] = -30; houseX[7] = 30; houseX[8] = 15; houseX[9] = -36; houseX[10] = -40;
+        houseZ[6] = 0;   houseZ[7] = 5;  houseZ[8] = 8;  houseZ[9] = 20;  houseZ[10] = 81;
     }
 
     if (isJumping && jumpAngle < 3.1415) {
-        jumpAngle += 0.1/jumpHeight;
-        ypos = jumpHeight*sin(jumpAngle);
+        jumpAngle += JUMP_SPEED/JUMP_HEIGHT;
+        ypos = JUMP_HEIGHT*sin(jumpAngle);
     } else {
         jumpAngle = 0;
         isJumping =0;
@@ -1480,9 +1519,13 @@ void update_func()
         posVec[1] = 0;
         posVec[2] = zpos - enemyPosZ;
         normalize(posVec);
+        xpos += posVec[0]*3;
+        zpos += posVec[2]*3;
         enemyPosX -= posVec[0]*3;
         enemyPosZ -= posVec[2]*3;
+        playerHP -= 2;
         enemyTouchingPlayer = 0;
+        
     }
     
     // update position of enemy
@@ -1529,6 +1572,43 @@ void update_func()
             autoKillBoxZ = -autoKillBoxZ;
     }
     
+    for (int i=0; i<numHouses; i++) {
+        if (fabs(ammoX-houseX[i]) < houseXWidth &&
+            fabs(ammoZ-houseZ[i]) < houseZWidth)
+        {
+            ammoX = rand()%100;
+            ammoZ = rand()%100;
+            if (rand()%2 == 1)
+                ammoX = -ammoX;
+            if (rand()%2 == 1)
+                ammoZ = -ammoZ;
+        }
+        
+        if (fabs(autoKillBoxX-houseX[i]) < houseXWidth &&
+            fabs(autoKillBoxZ-houseZ[i]) < houseZWidth)
+        {
+            autoKillBoxX = rand()%100;
+            autoKillBoxZ = rand()%100;
+            if (rand()%2 == 1)
+                autoKillBoxX = -autoKillBoxX;
+            if (rand()%2 == 1)
+                autoKillBoxZ = -autoKillBoxZ;
+        }
+        
+        if (fabs(healthX-houseX[i]) < houseXWidth &&
+            fabs(healthZ-houseZ[i]) < houseZWidth)
+        {
+            healthX = rand()%100;
+            healthX = rand()%100;
+            if (rand()%2 == 1)
+                healthX = -healthX;
+            if (rand()%2 == 1)
+                healthZ = -healthZ;
+        }
+        
+    }
+
+    
     
     if (isReloading) {
         reloadTimer += 1;
@@ -1559,6 +1639,7 @@ void update_func()
     
     if (numLasers == maxLasers){
         needToReload = 1;
+        isReloading = 1;
     }
     
     //enemy-laser collision detection
@@ -1611,9 +1692,8 @@ void update_func()
     
     //enemy-camera collision detection
     //TODO: FIX ypos
-    if (fabs(enemyPosX - xpos) < 4 && fabs(enemyPosZ - zpos) < 4){
+    if (fabs(enemyPosX - xpos) < 4 && fabs(enemyPosZ - zpos) < 4 && fabs(enemyPosY - ypos) < 4){
         enemyTouchingPlayer = 1;
-        playerHP -= 3;
     }
     
     // user created a new laser
@@ -1649,6 +1729,72 @@ void update_func()
             laserPosY[j] -= (float)(sin(xrotrad)*1);
         }
     }
+    
+    // health box collision detection
+    if (fabs(xpos - healthX) < 2 && fabs(zpos - healthZ) < 2) {
+        playerHP = 30;
+        healthX = 10000;
+        healthZ = 10000;
+        showHealthBox = 0;
+        showHealthAlert = 0;
+    }
+
+    
+    // spawn a health box every 5000 pts
+    for (int i = 0; i<numHealths; i++) {
+        if (health[i]) {
+            if (healthX == 10000) {
+                healthX = rand()%100;
+                healthZ = rand()%100;
+                if (rand()%2 == 1)
+                    healthX = -healthX;
+                if (rand()%2 == 1)
+                    healthZ = -healthZ;
+            }
+            showHealthBox = 1;
+            showHealthAlert = 1;
+        }
+    }
+
+    if (score > 2500)
+        health[0] = 1;
+    if (score > 5000){
+        health[0] = 0;
+        health[1] = 1;
+    }
+    if (score > 7500) {
+        health[1] = 0;
+        health[2] = 1;
+    }
+    if (score > 10000) {
+        health[2] = 0;
+        health[3] = 1;
+    }
+    if (score > 15000) {
+        health[3] = 0;
+        health[4] = 1;
+    }
+    if (score > 20000) {
+        health[4] = 0;
+        health[5] = 1;
+    }
+    if (score > 25000) {
+        health[5] = 0;
+        health[6] = 1;
+    }
+    if (score > 30000) {
+        health[6] = 0;
+        health[7] = 1;
+    }
+    if (score > 50000) {
+        health[7] = 0;
+        health[8] = 1;
+    }
+    if (score > 70000) {
+        health[8] = 0;
+        health[9] = 1;
+    }
+    
     
     //  Elapsed time in seconds
     double t = glutGet(GLUT_ELAPSED_TIME)/1000.0;
