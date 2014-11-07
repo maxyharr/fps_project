@@ -905,13 +905,15 @@ static void laser(double x, double y, double z,
 
 
 void mousePressed(int button, int state, int x, int y) {
-    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
-        makeLaser = 1;
-        glutPostRedisplay();
-    }
-    else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
-        makeLaser = 0;
-        glutPostRedisplay();
+    if (!paused) {
+        if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+            makeLaser = 1;
+            glutPostRedisplay();
+        }
+        else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
+            makeLaser = 0;
+            glutPostRedisplay();
+        }
     }
 }
 
@@ -1121,6 +1123,10 @@ void display()
         glWindowPos2i(windowWidth/2 - 70, windowHeight- 80);
         Print("BLACK HEALTH BOX DROPPED!!!", update_score);
     }
+    if (paused) {
+        glWindowPos2i(windowWidth/2 - 70, windowHeight/2);
+        Print("PAUSED");
+    }
 //    Print("numLasers: %d", numLasers);
 //    glWindowPos2i(10, 90);
 //    Print("maxLasers: %d", maxLasers);
@@ -1133,8 +1139,11 @@ void display()
 //    glWindowPos2i(10, 70);
 //    Print("+Z: %i, -Z: %i, +X: %i, -X: %i", walkingInPosZDirection, walkingInNegZDirection, walkingInPosXDirection, walkingInNegXDirection);
     //  Render the scene and make it visible
-    glWindowPos2i(windowWidth/2, windowHeight/2);
-    Print("O");
+    if (!paused) {
+        glWindowPos2i(windowWidth/2, windowHeight/2);
+        Print("O");
+    }
+    
     glFlush();
     glutSwapBuffers();
 }
@@ -1212,35 +1221,32 @@ void key_down(unsigned char ch, int x, int y)
         ylight+=1;
     else if (ch == 'E')
         ylight-=1;
-    
-    //space bar to jump
-    else if (ch == ' ')
-        isJumping = 1;
-    else if (ch == 'r' && totalAmmo > 0) {
-        isReloading = 1;
-    }
-    else if (ch == '1') {
-        enemyDead = 0;
-        enemyHP = ENEMY_MAX_HP;
-    }
     else if (ch == 'p')
         paused = 1-paused;
     
-    else if (ch == 'g' && allowedToAutoKill) {
-        update_score = 300;
-        score += update_score;
-        showScore = 1;
+    if (!paused) {
+        //space bar to jump
+        if (ch == ' ')
+            isJumping = 1;
+        else if (ch == 'r' && totalAmmo > 0) {
+            isReloading = 1;
+        }
         
-        enemyDead = 1;
-        autoKillTimer = 0;
-        allowedToAutoKill = 0;
+        
+        else if (ch == 'g' && allowedToAutoKill) {
+            update_score = 300;
+            score += update_score;
+            showScore = 1;
+            
+            enemyDead = 1;
+            autoKillTimer = 0;
+            allowedToAutoKill = 0;
+        }
+        
+        else if (ch == 'c' && canThrowMelee) {
+            meleeThrown = 1;
+        }
     }
-    
-    else if (ch == 'c' && canThrowMelee) {
-        meleeThrown = 1;
-    }
-    
-    
 }
 
 void key_up(unsigned char ch, int x, int y)
@@ -1528,16 +1534,19 @@ void update_func()
         
     }
     
-    // update position of enemy
-    if (!enemyDead) {
-        double posVec[3];
-        posVec[0] = xpos - enemyPosX;
-        posVec[1] = 0;
-        posVec[2] = zpos - enemyPosZ;
-        normalize(posVec);
-        enemyPosX += posVec[0]*0.15;
-        enemyPosZ += posVec[2]*0.15;
+    if (!paused) {
+        // update position of enemy
+        if (!enemyDead) {
+            double posVec[3];
+            posVec[0] = xpos - enemyPosX;
+            posVec[1] = 0;
+            posVec[2] = zpos - enemyPosZ;
+            normalize(posVec);
+            enemyPosX += posVec[0]*0.15;
+            enemyPosZ += posVec[2]*0.15;
+        }
     }
+    
     
     // need to borrow lasers from ammo storage
     if (!allowedToShoot){
@@ -1817,76 +1826,78 @@ void update_func()
     // #####  FROM CAMERA TUTORIAL  #####
     // ##################################
     
-    
-    // Move forward
-    else if (key_state['w'] || key_state['W'])
-    {
-
-        float xrotrad, yrotrad;
-        yrotrad = (yrot / 180 * 3.141592654f);
-        xrotrad = (xrot / 180 * 3.141592654f);
-        xpos += (float)(sin(yrotrad)*0.1);
-        zpos -= (float)(cos(yrotrad)*0.1);
-        //ypos -= (float)(sin(xrotrad)*0.1); // uncomment for character flying ability
+    if (!paused) {
+        // Move forward
+        if (key_state['w'] || key_state['W'])
+        {
+            
+            float xrotrad, yrotrad;
+            yrotrad = (yrot / 180 * 3.141592654f);
+            xrotrad = (xrot / 180 * 3.141592654f);
+            xpos += (float)(sin(yrotrad)*0.1);
+            zpos -= (float)(cos(yrotrad)*0.1);
+            //ypos -= (float)(sin(xrotrad)*0.1); // uncomment for character flying ability
+            
+            
+            if (walkbiasangle >= 359.0f)                 // Is walkbiasangle>=359?
+                walkbiasangle = 0.0f;                   // Make walkbiasangle Equal 0
+            else                                // Otherwise
+                walkbiasangle+= 10;                    // If walkbiasangle < 359 Increase It By 10
+            
+            walkbias = (float)sin(walkbiasangle * 3.141592654f/180)/20.0f;     // Causes The Player To Bounce
+        }
         
+        // Move backward
+        else if (key_state['s'] || key_state['S'])
+        {
+            float xrotrad, yrotrad;
+            yrotrad = (yrot / 180 * 3.141592654f);
+            xrotrad = (xrot / 180 * 3.141592654f);
+            xpos -= (float)(sin(yrotrad)*0.1);
+            zpos += (float)(cos(yrotrad)*0.1);
+            //ypos += (float)(sin(xrotrad)*0.1); // uncomment for character flying ability
+            
+            if (walkbiasangle <= 1.0f)                   // Is walkbiasangle<=1?
+                walkbiasangle = 359.0f;                 // Make walkbiasangle Equal 359
+            else                                // Otherwise
+                walkbiasangle-= 10;                 // If walkbiasangle > 1 Decrease It By 10
+            walkbias = (float)sin(walkbiasangle * 3.141592654f/180)/20.0f;     // Causes The Player To Bounce
+            
+        }
         
-        if (walkbiasangle >= 359.0f)                 // Is walkbiasangle>=359?
-            walkbiasangle = 0.0f;                   // Make walkbiasangle Equal 0
-        else                                // Otherwise
-            walkbiasangle+= 10;                    // If walkbiasangle < 359 Increase It By 10
-
-        walkbias = (float)sin(walkbiasangle * 3.141592654f/180)/20.0f;     // Causes The Player To Bounce
+        // Strafe right
+        else if (key_state['d'] || key_state['D'])
+        {
+            float yrotrad;
+            yrotrad = (yrot / 180 * 3.141592654f);
+            xpos += (float)(cos(yrotrad)) * 0.1;
+            zpos += (float)(sin(yrotrad)) * 0.1;
+            
+            if (walkbiasangle >= 359.0f)                 // Is walkbiasangle>=359?
+                walkbiasangle = 0.0f;                   // Make walkbiasangle Equal 0
+            else                                // Otherwise
+                walkbiasangle+= 10;                    // If walkbiasangle < 359 Increase It By 10
+            
+            walkbias = (float)sin(walkbiasangle * 3.141592654f/180)/20.0f;     // Causes The Player To Bounce
+            
+        }
+        
+        //  Strafe left
+        else if (key_state['a'] || key_state['A'])
+        {
+            float yrotrad;
+            yrotrad = (yrot / 180 * 3.141592654f);
+            xpos -= (float)(cos(yrotrad)) * 0.1;
+            zpos -= (float)(sin(yrotrad)) * 0.1;
+            
+            if (walkbiasangle <= 1.0f)                   // Is walkbiasangle<=1?
+                walkbiasangle = 359.0f;                 // Make walkbiasangle Equal 359
+            else                                // Otherwise
+                walkbiasangle-= 10;                 // If walkbiasangle > 1 Decrease It By 10
+            walkbias = (float)sin(walkbiasangle * 3.141592654f/180)/20.0f;     // Causes The Player To Bounce
+        }
     }
     
-    // Move backward
-    else if (key_state['s'] || key_state['S'])
-    {
-        float xrotrad, yrotrad;
-        yrotrad = (yrot / 180 * 3.141592654f);
-        xrotrad = (xrot / 180 * 3.141592654f);
-        xpos -= (float)(sin(yrotrad)*0.1);
-        zpos += (float)(cos(yrotrad)*0.1);
-        //ypos += (float)(sin(xrotrad)*0.1); // uncomment for character flying ability
-
-        if (walkbiasangle <= 1.0f)                   // Is walkbiasangle<=1?
-            walkbiasangle = 359.0f;                 // Make walkbiasangle Equal 359
-        else                                // Otherwise
-            walkbiasangle-= 10;                 // If walkbiasangle > 1 Decrease It By 10
-        walkbias = (float)sin(walkbiasangle * 3.141592654f/180)/20.0f;     // Causes The Player To Bounce
-        
-    }
-    
-    // Strafe right
-    else if (key_state['d'] || key_state['D'])
-    {
-        float yrotrad;
-        yrotrad = (yrot / 180 * 3.141592654f);
-        xpos += (float)(cos(yrotrad)) * 0.1;
-        zpos += (float)(sin(yrotrad)) * 0.1;
-        
-        if (walkbiasangle >= 359.0f)                 // Is walkbiasangle>=359?
-            walkbiasangle = 0.0f;                   // Make walkbiasangle Equal 0
-        else                                // Otherwise
-            walkbiasangle+= 10;                    // If walkbiasangle < 359 Increase It By 10
-        
-        walkbias = (float)sin(walkbiasangle * 3.141592654f/180)/20.0f;     // Causes The Player To Bounce
-        
-    }
-    
-    //  Strafe left
-    else if (key_state['a'] || key_state['A'])
-    {
-        float yrotrad;
-        yrotrad = (yrot / 180 * 3.141592654f);
-        xpos -= (float)(cos(yrotrad)) * 0.1;
-        zpos -= (float)(sin(yrotrad)) * 0.1;
-
-        if (walkbiasangle <= 1.0f)                   // Is walkbiasangle<=1?
-            walkbiasangle = 359.0f;                 // Make walkbiasangle Equal 359
-        else                                // Otherwise
-            walkbiasangle-= 10;                 // If walkbiasangle > 1 Decrease It By 10
-        walkbias = (float)sin(walkbiasangle * 3.141592654f/180)/20.0f;     // Causes The Player To Bounce
-    }
     
     else if (key_state['g'])
     {
@@ -1977,9 +1988,6 @@ int main(int argc,char* argv[])
     
     
     //  Pass control to GLUT so it can interact with the user
-    if (!paused) {
         glutMainLoop();
         return 0;
-    }
-    
 }
