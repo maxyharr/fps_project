@@ -67,6 +67,7 @@ int meleeThrown = 0;
 int canThrowMelee = 1;
 double meleeTimer = 0;
 double MELEE_SECONDS = 1;
+int printMelee = 0;
 
 // ammo box
 double ammoX = -50, ammoZ = -50, ammoXWidth = 0.3, ammoHeight = 0.3, ammoZWidth = 0.3;
@@ -267,11 +268,10 @@ static void Vertex(double th,double ph)
 }
 
 
-static void updateEnemySpeed(int score) {
-    updateSpeed = (double) score;
+static void updateEnemySpeed(int new_score) {
+    updateSpeed = (double) new_score;
     // reduce multiple of 100 to between 0.0001 - 0.001
     updateSpeed /= 100000;
-    updateSpeed *= 2;
     enemySpeed += updateSpeed;
     
 }
@@ -1136,10 +1136,10 @@ void display()
     Print("HIGH SCORE: %d", highScore);
     glWindowPos2i(windowWidth/2 - 50, windowHeight-140);
     Print("Hobo HP: %d", enemyHP);
-    glWindowPos2i(windowWidth-170, windowHeight -20);
-    Print("Hobo Speed: %d", enemySpeed);
-    glWindowPos2i(windowWidth-170, windowHeight -40);
-    Print("update_speed: %d", updateSpeed);
+    if (printMelee) {
+        glWindowPos2i(windowWidth/2 - 50, 100);
+        Print("Press C to Melee");
+    }
     if (allowedToAutoKill) {
         glWindowPos2i(windowWidth/2 - 50, windowHeight-100);
         Print("Press G to AutoKill!");
@@ -1156,6 +1156,8 @@ void display()
         glWindowPos2i(windowWidth/2 - 70, windowHeight/2);
         Print("PAUSED");
     }
+    glRasterPos3d(enemyPosX,enemyHeight + 10,enemyPosZ);
+    Print("V");
 //    Print("numLasers: %d", numLasers);
 //    glWindowPos2i(10, 90);
 //    Print("maxLasers: %d", maxLasers);
@@ -1524,6 +1526,12 @@ void update_func()
             enemyPosX = -enemyPosX;
         if (rand()%2 == 1)
             enemyPosZ = -enemyPosZ;
+    }
+    
+    if (fabs(xpos-enemyPosX) <= 6 && fabs(zpos - enemyPosZ) <= 6) {
+        printMelee = 1;
+    } else {
+        printMelee = 0;
     }
     
     if (canThrowMelee && meleeThrown) {
