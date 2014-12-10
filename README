@@ -77,3 +77,10 @@ Reset View
 Zoom out/in
     'z'/'x' keys
 
+
+Still Left to be done:
+1. Organize objects in world to create an immersive environment.
+2. Create more complexity in the objects in the world. (Flat surfaces to become rounded, fractal, etc…)
+3. Relay textures to look more proportional
+4. Add more complex lighting (from light poles places around the world).
+5. Use shader on enemy to remove white background

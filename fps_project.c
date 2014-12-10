@@ -32,14 +32,19 @@
 #include <GL/glut.h>
 #endif
 
-int axes=1;       //  Display axes
+int axes=0;       //  Display axes
 int mode=1;       //  Projection mode
 int fov=50;       //  Field of view (for perspective)
 double asp=1;     //  Aspect ratio
-double dim=8.0;   //  Size of world
+double dim=20.0;   //  Size of world
 int paused = 0;
 
 int key_state[256] = { 0 };
+
+double ENEMY_CAMERA_COLLISION_DISTANCE = 10;
+double BOUNCE_BACK = 15;
+double HOUSE_BOUNCE_BACK = 1;
+
 
 // Differences from ex13
 int move=1;       //  Move light
@@ -67,10 +72,14 @@ int meleeThrown = 0;
 int canThrowMelee = 1;
 double meleeTimer = 0;
 double MELEE_SECONDS = 1;
+double MELEE_DISTANCE = 30;
 int printMelee = 0;
 
+double MOVEMENT_SPEED = 0.5;
+
 // ammo box
-double ammoX = -50, ammoZ = -50, ammoXWidth = 0.3, ammoHeight = 0.3, ammoZWidth = 0.3;
+double ammoX = -50, ammoZ = -50, ammoXWidth = 2, ammoHeight = 2, ammoZWidth = 2;
+double AMMO_COLLISION_DISTANCE = 5;
 int ammoPresent = 1;
 double ammoReloadTime;
 int totalAmmo = 75;
@@ -116,8 +125,8 @@ double xpos = 0, ypos = 0, zpos = 30, xrot = 230, yrot = 0, angle=0.0;
     //bobble
 float walkbias, walkbiasangle;
 int isJumping; double jumpAngle = 0;
-double JUMP_HEIGHT = 3; //1.8;
-double JUMP_SPEED = 0.14;
+double JUMP_HEIGHT = 20; //1.8;
+double JUMP_SPEED = 0.7;
 int playerHP = 30;
 int enemyTouchingPlayer = 0;
 int walkingInNegXDirection, walkingInNegZDirection, walkingInPosXDirection, walkingInPosZDirection;
@@ -127,6 +136,7 @@ double autoKillTimer = 0;
 double AUTO_KILL_SECONDS = 35;
 
 // lasers
+double LASER_SPEED = 5;
 int numLasers = 0;
 int maxLasers = 25; // Only allow x lasers before reloading // DON'T GO ABOVE 200 W/0 changing array sizes below
 int makeLaser = 0;
@@ -147,20 +157,20 @@ double laserDirectionX[200], laserDirectionY[200];
 
 // enemy constants
 double enemyPosX=-75, enemyPosY=0, enemyPosZ=-75;
-double enemyZWidth=1, enemyXWidth=1, enemyHeight=2;
+double enemyZWidth=4, enemyXWidth=4, enemyHeight=9;
 double enemyRotation;
 int enemyDead = 0;
 double ENEMY_MOVEMENT_SECS = 0.2;
-int ENEMY_MAX_HP = 20;
-int enemyHP = 20;
+int ENEMY_MAX_HP = 10;
+int enemyHP = 10;
 int numEnemys = 20;
-double enemySpeed = 0.05;
+double enemySpeed = 0.2;
 double updateSpeed;
 
 // houses locations
 int numHouses = 20;
 double houseX[50], houseY[50], houseZ[50];
-double houseXWidth = 3, houseHeight = 3.5, houseZWidth = 5;
+double houseXWidth = 7, houseHeight = 10.5, houseZWidth = 7;
 
 
 //textures
@@ -174,6 +184,7 @@ unsigned int gravelTexture;
 unsigned int doorTexture;
 unsigned int hoboTexture;
 unsigned int crateTexture;
+unsigned int outerWallTexture;
 
 // camera position - Change with WASD in conjuction with arrow keys to look around
 double Ex = 0;
@@ -212,8 +223,8 @@ double DOOR_HEIGHT = 0.4;
 double POLE_HEIGHT = 1;
 double POLE_WIDTH  = 1;
 // Tree
-double TREE_WIDTH = 0.4;
-double TREE_HEIGHT = 2.5;
+double TREE_WIDTH = 2;
+double TREE_HEIGHT = 10.5;
 
 /*
  *  Convenience routine to output raster text
@@ -628,7 +639,7 @@ static void lightPole(double x, double y, double z,
     glPushMatrix();
     glTranslated(x, y, z);
     glScaled(1, 1, 1);
-    lightTop(-0.05, POLE_HEIGHT*height, -0.05, width+0.1);
+    lightTop(-0.5, height, -0.5, width*2);
     glPopMatrix();
 }
 
@@ -834,7 +845,8 @@ void mouseMovementNoButtons(int x, int y) {
         lasty=y; //set lasty to the current y position
         xrot += diffy*0.5; //set the xrot to xrot with the addition of the difference in the y position
         yrot += diffx*0.5;// set the xrot to yrot with the addition of the difference in the x position
-        if (x >= windowWidth-10 || x <= 10 || y>= windowHeight-10 ||y <= 10) {
+        if (x >= windowWidth-1 || x <= 1 || y>= windowHeight-1 ||y <= 1) {
+        //if (x != windowWidth/2 || y != windowHeight/2) {
             isWarpingPointer = 1;
             glutWarpPointer(windowWidth/2, windowHeight/2);
         }
@@ -855,7 +867,7 @@ void mouseMovementWithButtons(int x, int y) {
         lasty=y; //set lasty to the current y position
         xrot += (float) diffy*0.5; //set the xrot to xrot with the addition of the difference in the y position
         yrot += (float) diffx*0.5;// set the xrot to yrot with the addition of the difference in the x position
-        if (x >= windowWidth-10 || x <= 10 || y>= windowHeight-10 ||y <= 10) {
+        if (x >= windowWidth-1 || x <= 1 || y>= windowHeight-1 ||y <= 1) {
             isWarpingPointer = 1;
             glutWarpPointer(windowWidth/2, windowHeight/2);
         }
@@ -935,7 +947,7 @@ void mousePressed(int button, int state, int x, int y) {
 void camera(void) {
     glRotatef(xrot,1.0,0.0,0.0);  //rotate our camera on the x-axis (left and right)
     glRotatef(yrot,0.0,1.0,0.0);  //rotate our camera on the y-axis (up and down)
-    glTranslated(-xpos,-ypos-0.4-walkbias,-zpos); //translate the screen to the position of our camera
+    glTranslated(-xpos,-ypos-3.5-walkbias,-zpos); //translate the screen to the position of our camera
 }
 
 
@@ -976,31 +988,84 @@ void display()
     
     if (light)
     {
+        
         //  Translate intensity to color vectors
         float Ambient[]   = {0.01*ambient ,0.01*ambient ,0.01*ambient ,1.0};
         float Diffuse[]   = {0.01*diffuse ,0.01*diffuse ,0.01*diffuse ,1.0};
         float Specular[]  = {0.01*specular,0.01*specular,0.01*specular,1.0};
-        //  Light position
-        float Position[]  = {distance*Cos(zh),ylight,distance*Sin(zh),1.0};
-        //  Draw light position as ball (still no lighting here)
-        glColor3f(1,1,1);
-        ball(Position[0],Position[1],Position[2] , 0.1);
-        //  OpenGL should normalize normal vectors
-        glEnable(GL_NORMALIZE);
-        //  Enable lighting
-        glEnable(GL_LIGHTING);
-        //  Location of viewer for specular calculations
-        glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER,local);
-        //  glColor sets ambient and diffuse color materials
-        glColorMaterial(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE);
-        glEnable(GL_COLOR_MATERIAL);
-        //  Enable light 0
-        glEnable(GL_LIGHT0);
-        //  Set ambient, diffuse, specular components and position of light 0
-        glLightfv(GL_LIGHT0,GL_AMBIENT ,Ambient);
-        glLightfv(GL_LIGHT0,GL_DIFFUSE ,Diffuse);
-        glLightfv(GL_LIGHT0,GL_SPECULAR,Specular);
-        glLightfv(GL_LIGHT0,GL_POSITION,Position);
+        
+        
+        // back lightpoles
+        for (int i=0; i<=190; i+=25) {
+            lightPole(-85+i, 0, -85, 1, 10, 0);
+            //  Light position
+            float Position[]  = {-85+i*-Cos(zh),10,-85*-Sin(zh),1.0};
+            //  OpenGL should normalize normal vectors
+            glEnable(GL_NORMALIZE);
+            //  Enable lighting
+            glEnable(GL_LIGHTING);
+            //  Location of viewer for specular calculations
+            glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER,local);
+            //  glColor sets ambient and diffuse color materials
+            glColorMaterial(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE);
+            glEnable(GL_COLOR_MATERIAL);
+            //  Enable light 0
+            glEnable(GL_LIGHT0);
+            //  Set ambient, diffuse, specular components and position of light 0
+            glLightfv(GL_LIGHT0,GL_AMBIENT ,Ambient);
+            glLightfv(GL_LIGHT0,GL_DIFFUSE ,Diffuse);
+            glLightfv(GL_LIGHT0,GL_SPECULAR,Specular);
+            glLightfv(GL_LIGHT0,GL_POSITION,Position);
+        }
+    
+        // middle lightpoles
+        for (int i=25; i<=165; i+=25) {
+            lightPole(-85+i, 0, 10, 1, 10, 0);
+            float Position[]  = {-85+i*Cos(zh),10,10*Sin(zh),1.0};
+            //  OpenGL should normalize normal vectors
+            glEnable(GL_NORMALIZE);
+            //  Enable lighting
+            glEnable(GL_LIGHTING);
+            //  Location of viewer for specular calculations
+            glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER,local);
+            //  glColor sets ambient and diffuse color materials
+            glColorMaterial(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE);
+            glEnable(GL_COLOR_MATERIAL);
+            //  Enable light 0
+            glEnable(GL_LIGHT0);
+            //  Set ambient, diffuse, specular components and position of light 0
+            glLightfv(GL_LIGHT0,GL_AMBIENT ,Ambient);
+            glLightfv(GL_LIGHT0,GL_DIFFUSE ,Diffuse);
+            glLightfv(GL_LIGHT0,GL_SPECULAR,Specular);
+            glLightfv(GL_LIGHT0,GL_POSITION,Position);
+        }
+        
+        
+        // front light poles
+        for (int i=25; i<=165; i+=25) {
+            lightPole(-85+i, 0, 81, 1, 10, 0);
+            float Position[]  = {-85+i*Cos(zh),15,81*Sin(zh),1.0};
+            glColor3f(1,1,1);
+            ball(Position[0],Position[1],Position[2] , 0.1);
+            //  OpenGL should normalize normal vectors
+            glEnable(GL_NORMALIZE);
+            //  Enable lighting
+            glEnable(GL_LIGHTING);
+            //  Location of viewer for specular calculations
+            glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER,local);
+            //  glColor sets ambient and diffuse color materials
+            glColorMaterial(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE);
+            glEnable(GL_COLOR_MATERIAL);
+            //  Enable light 0
+            glEnable(GL_LIGHT0);
+            //  Set ambient, diffuse, specular components and position of light 0
+            glLightfv(GL_LIGHT0,GL_AMBIENT ,Ambient);
+            glLightfv(GL_LIGHT0,GL_DIFFUSE ,Diffuse);
+            glLightfv(GL_LIGHT0,GL_SPECULAR,Specular);
+            glLightfv(GL_LIGHT0,GL_POSITION,Position);
+        }
+        
+//        //  Draw light position as ball (still no lighting here)
     }
     else
         glDisable(GL_LIGHTING);
@@ -1013,48 +1078,62 @@ void display()
     
     for (int i=0; i<numLasers; i++){
         if (laserMoving[i]) {
-            laser(laserPosX[i], 0.4+laserPosY[i], laserPosZ[i], 0.05, 0.05, 0.05);
+            laser(laserPosX[i], 0.4+laserPosY[i], laserPosZ[i], 0.2, 0.2, 0.2);
         }
     }
     
-    for (int i=1; i<numHouses; i++) {
+    //draw houses forward-facing houses
+    for (int i=1; i<=numHouses; i++) {
         house(houseX[i], 0, houseZ[i], houseXWidth, houseHeight, houseZWidth, 0);
     }
-
     
     //  Flat or smooth shading
     glShadeModel(smooth ? GL_SMOOTH : GL_FLAT);
     
-//    // Draw a couple of lights in the scene
-//    for (int i=-3; i<9; i=i+3){
-//        lightPole(-2, 0, i+0.3, 0.1, 1, 0);
-//    }
-    
-//    // Draw a couple different houses on the right
-//    for (int i=-4; i< 9; i=i+3){
-//        house(5, 0, i, 1.2, 1, 2, -85);
-//    }
-    
-    // Draw a couple of lights on the other side
-    for (int i=-4; i<9; i=i+3){
-        lightPole(2.5, 0, i + 20, 0.1, 1, 0);
+    // back trees
+    for (int i=25; i<=160; i+=25) {
+        double x = -93+i;
+        double y = 0;
+        double z = -60;
+        tree(x, y, z, TREE_WIDTH, TREE_HEIGHT, (83+i/3));
     }
     
-    // Draw trees everywhere
-    for (int i=-100; i<100; i=i+4) {
-        tree(-100, 0, i, TREE_WIDTH, TREE_HEIGHT, -20);
-        tree(100, 0, i, TREE_WIDTH, TREE_HEIGHT, 40);
-        if (i < 8 && i > -8)
-            tree(i, 0, -9.5, TREE_WIDTH, TREE_HEIGHT, 30);
+    // 2nd back trees
+    for (int i=32; i<=160; i+=25) {
+        double x = -93+i;
+        double y = 0;
+        double z = -30;
+        tree(x, y, z, TREE_WIDTH, TREE_HEIGHT, (83+i/3));
     }
     
-    // Draw a giant church-like house in the back
-    houseX[0] = houseY[0] = houseZ[0] = 0;
-    house(houseX[0], houseY[0], houseZ[0], houseXWidth, houseHeight, houseZWidth, 0);
-    lightPole(-3, 0, 8, 0.3, 3, 0);
+    // middle trees
+    for (int i=20; i<=160; i+=25) {
+        double x = -93+i;
+        double y = 0;
+        double z = 27;
+        tree(x, y, z, TREE_WIDTH, TREE_HEIGHT, (83+i/3));
+    }
     
+    // second middle trees
+    for (int i=29; i<=160; i+=25) {
+        double x = -93+i;
+        double y = 0;
+        double z = 50;
+        tree(x, y, z, TREE_WIDTH, TREE_HEIGHT, (83+i/3));
+    }
     
+    // back lightpoles
+    for (int i=0; i<=190; i+=25) {
+        lightPole(-85+i, 0, -85, 1, 10, 0);
+    }
     
+    // middle lightpoles
+    for (int i=25; i<=165; i+=25)
+        lightPole(-85+i, 0, 10, 1, 10, 0);
+    
+    // front light poles
+    for (int i=25; i<=165; i+=25)
+        lightPole(-85+i, 0, 81, 1, 10, 0);
     
     // ammo, autokill, and health boxes
     if (ammoPresent) {
@@ -1087,19 +1166,48 @@ void display()
     }
     
     
-    
-    // Draw a road
+    // Draw some road s
     glEnable(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
     glBindTexture(GL_TEXTURE_2D, gravelTexture);
     
     glBegin(GL_QUADS);
     glColor3f(0.45, 0.45, 0.45);
     glNormal3f(-25, 0.1, 100);
-    glTexCoord2f(0,0); glVertex3f(-1.2, 0.001, -3);
-    glTexCoord2f(100,0); glVertex3f(1.5, 0.001, -3);
-    glTexCoord2f(100,100); glVertex3f(1.5, 0.001, 100);
-    glTexCoord2f(0,100); glVertex3f(-1.2, 0.001, 100);
+    
+    // Back horizontal road
+    glTexCoord2f(0,0); glVertex3f(-95, 0.01, -85);
+    glTexCoord2f(20,0); glVertex3f(95, 0.01, -85);
+    glTexCoord2f(20,2); glVertex3f(95, 0.01, -70);
+    glTexCoord2f(0,2); glVertex3f(-95, 0.01, -70);
+    
+    //2nd from back horizontal road
+    glTexCoord2f(0,0); glVertex3f(-80, 0.01, 8);
+    glTexCoord2f(20,0); glVertex3f(80, 0.01, 8);
+    glTexCoord2f(20,2); glVertex3f(80, 0.01, 23);
+    glTexCoord2f(0,2); glVertex3f(-80, 0.01, 23);
+    
+    //3rd from back horizontal road
+    glTexCoord2f(0,0); glVertex3f(-95, 0.01, 81);
+    glTexCoord2f(20,0); glVertex3f(95, 0.01, 81);
+    glTexCoord2f(20,2); glVertex3f(95, 0.01, 96);
+    glTexCoord2f(0,2); glVertex3f(-95, 0.01, 96);
+    
+    // left vertical road
+    glTexCoord2f(0,0); glVertex3f(-95, 0.01, -70);
+    glTexCoord2f(20,0); glVertex3f(-95, 0.01, 81);
+    glTexCoord2f(20,2); glVertex3f(-80, 0.01, 81);
+    glTexCoord2f(0,2); glVertex3f(-80, 0.01, -70);
+    
+    // right vertical road
+    glTexCoord2f(0,0); glVertex3f(80, 0.01, -70);
+    glTexCoord2f(20,0); glVertex3f(80, 0.01, 81);
+    glTexCoord2f(20,2); glVertex3f(95, 0.01, 81);
+    glTexCoord2f(0,2); glVertex3f(95, 0.01, -70);
+    
+    
     
     glEnd();
     glDisable(GL_TEXTURE_2D);
@@ -1259,7 +1367,7 @@ void key_down(unsigned char ch, int x, int y)
         //space bar to jump
         if (ch == ' ')
             isJumping = 1;
-        else if (ch == 'r' && totalAmmo > 0) {
+        else if (ch == 'r' && totalAmmo > 0 && numLasers != 0) {
             isReloading = 1;
         }
         
@@ -1461,29 +1569,43 @@ void update_func()
             walkingInPosXDirection = 1;
     }
 
-    for (int i = 0; i<numHouses; i++) {
+    //enemy-house collision detection
+    for (int i=1; i<=numHouses; i++) {
+        if (enemyPosZ < houseZ[i] + houseZWidth + 0.2 && enemyPosZ > houseZ[i] - houseZWidth - 0.2 &&
+            enemyPosX < houseX[i] + houseXWidth + 0.2 && enemyPosX > houseX[i] - houseXWidth - 0.2) {
+            // trap enemy in house // teleport enemy in front of house
+            enemyPosX = houseX[i]+houseXWidth + 1;
+            enemyPosZ = houseZ[i]+houseZWidth + 1;
+            
+        }
+    }
+    
+    //camera-house collision detection
+    for (int i = 1; i<=numHouses; i++) {
         if (zpos < houseZ[i] + houseZWidth + 0.2 && zpos > houseZ[i] - houseZWidth - 0.2 &&
             xpos < houseX[i] + houseXWidth + 0.2 && xpos > houseX[i] - houseXWidth - 0.2) {
             
-            if (walkingInNegZDirection && walkingInNegXDirection) {
-                zpos += 0.1;
-                xpos += 0.1;
-            }
-            
-            else if (walkingInPosZDirection && walkingInNegXDirection) {
-                zpos -= 0.1;
-                xpos += 0.1;
-            }
-            
-            else if (walkingInNegZDirection && walkingInPosXDirection) {
-                zpos += 0.1;
-                xpos -= 0.1;
-            }
-            
-            else if (walkingInPosZDirection && walkingInPosXDirection) {
-                zpos -= 0.1;
-                xpos -= 0.1;
-            }
+//            if (ypos <= houseY[i]) {
+                if (walkingInNegZDirection && walkingInNegXDirection) {
+                    zpos += HOUSE_BOUNCE_BACK;
+                    xpos += HOUSE_BOUNCE_BACK;
+                }
+                
+                else if (walkingInPosZDirection && walkingInNegXDirection) {
+                    zpos -= HOUSE_BOUNCE_BACK;
+                    xpos += HOUSE_BOUNCE_BACK;
+                }
+                
+                else if (walkingInNegZDirection && walkingInPosXDirection) {
+                    zpos += HOUSE_BOUNCE_BACK;
+                    xpos -= HOUSE_BOUNCE_BACK;
+                }
+                
+                else if (walkingInPosZDirection && walkingInPosXDirection) {
+                    zpos -= HOUSE_BOUNCE_BACK;
+                    xpos -= HOUSE_BOUNCE_BACK;
+                }
+//            }
         }
     }
     
@@ -1495,11 +1617,18 @@ void update_func()
         glutWarpPointer(windowWidth/2+117, windowHeight/2-90);
         initialized = 1;
         
-        houseX[1] = -90; houseX[2] = -70; houseX[3] = 45; houseX[4] = 45; houseX[5] = 10;
-        houseZ[1] = -75; houseZ[2] = -90; houseZ[3] = 45; houseZ[4] = 60; houseZ[5] = 50;
+        // back row facing forward
+        houseX[1] = -90; houseX[2] = -65; houseX[3] = -40; houseX[4] = -15; houseX[5] = 10; houseX[6] = 35; houseX[7] = 60; houseX[8] = 85;
+        houseZ[1] = -93; houseZ[2] = -93; houseZ[3] = -93; houseZ[4] = -93; houseZ[5] = -93; houseZ[6] = -93; houseZ[7] = -93;  houseZ[8] = -93;
         
-        houseX[6] = -30; houseX[7] = 30; houseX[8] = 15; houseX[9] = -36; houseX[10] = -40;
-        houseZ[6] = 0;   houseZ[7] = 5;  houseZ[8] = 8;  houseZ[9] = 20;  houseZ[10] = 81;
+        //2nd from back, facing forward
+        houseX[9] = -65; houseX[10] = -40; houseX[11] = -15; houseX[12] = 10; houseX[13] = 35; houseX[14] = 60;
+        houseZ[9] = -13; houseZ[10] = -13; houseZ[11] = -13; houseZ[12] = -13; houseZ[13] = -13; houseZ[14] = -13;
+        
+        //3rd from back, facing forward
+        houseX[15] = -65; houseX[16] = -40; houseX[17] = -15; houseX[18] = 10; houseX[19] = 35; houseX[20] = 60;
+        houseZ[9] = 73; houseZ[10] = 73; houseZ[11] = 73; houseZ[12] = 73; houseZ[13] = 73; houseZ[14] = 73;
+        
     }
 
     if (isJumping && jumpAngle < 3.1415) {
@@ -1528,7 +1657,7 @@ void update_func()
             enemyPosZ = -enemyPosZ;
     }
     
-    if (fabs(xpos-enemyPosX) <= 6 && fabs(zpos - enemyPosZ) <= 6) {
+    if (fabs(xpos-enemyPosX) <= MELEE_DISTANCE && fabs(zpos - enemyPosZ) <= MELEE_DISTANCE) {
         printMelee = 1;
     } else {
         printMelee = 0;
@@ -1538,7 +1667,7 @@ void update_func()
         canThrowMelee = 0;
         meleeTimer = 0;
         
-        if (fabs(xpos-enemyPosX) <= 6 && fabs(zpos - enemyPosZ) <= 6) {
+        if (fabs(xpos-enemyPosX) <= MELEE_DISTANCE && fabs(zpos - enemyPosZ) <= MELEE_DISTANCE) {
             double posVec[3];
             posVec[0] = xpos - enemyPosX;
             posVec[1] = 0;
@@ -1546,7 +1675,7 @@ void update_func()
             normalize(posVec);
             enemyPosX -= posVec[0]*12;
             enemyPosZ -= posVec[2]*12;
-            enemyHP -= 10;
+            enemyHP -= 6;
         }
         meleeThrown = 0;
     }
@@ -1564,10 +1693,10 @@ void update_func()
         posVec[1] = 0;
         posVec[2] = zpos - enemyPosZ;
         normalize(posVec);
-        xpos += posVec[0]*3;
-        zpos += posVec[2]*3;
-        enemyPosX -= posVec[0]*3;
-        enemyPosZ -= posVec[2]*3;
+        xpos += posVec[0]*BOUNCE_BACK;
+        zpos += posVec[2]*BOUNCE_BACK;
+        enemyPosX -= posVec[0]*BOUNCE_BACK;
+        enemyPosZ -= posVec[2]*BOUNCE_BACK;
         playerHP -= 2;
         enemyTouchingPlayer = 0;
         
@@ -1604,7 +1733,7 @@ void update_func()
     }
     
     // camera-autokillbox collision
-    if (fabs(xpos-autoKillBoxX) < 2 && fabs(zpos-autoKillBoxZ) < 2) {
+    if (fabs(xpos-autoKillBoxX) < AMMO_COLLISION_DISTANCE && fabs(zpos-autoKillBoxZ) < AMMO_COLLISION_DISTANCE) {
         update_score = 1000;
         score += update_score;
         updateEnemySpeed(update_score);
@@ -1621,7 +1750,7 @@ void update_func()
             autoKillBoxZ = -autoKillBoxZ;
     }
     
-    for (int i=0; i<numHouses; i++) {
+    for (int i=1; i<=numHouses; i++) {
         if (fabs(ammoX-houseX[i]) < houseXWidth &&
             fabs(ammoZ-houseZ[i]) < houseZWidth)
         {
@@ -1702,6 +1831,9 @@ void update_func()
             fabs(laserPosY[i] - enemyPosY) < enemyHeight)
         {
             enemyHP -= 1;
+            laserPosX[i] = 1000;
+            laserPosZ[i] = 1000;
+            laserPosY[i] = 1000;
         }
     }
     
@@ -1711,7 +1843,7 @@ void update_func()
     
     
     // camera-ammo collision detection
-    if (fabs(ammoX - xpos) < 2 && fabs(ammoZ - zpos) < 2) {
+    if (fabs(ammoX - xpos) < AMMO_COLLISION_DISTANCE && fabs(ammoZ - zpos) < AMMO_COLLISION_DISTANCE) {
         update_score = 400;
         score += update_score;
         updateEnemySpeed(update_score);
@@ -1742,7 +1874,8 @@ void update_func()
     
     //enemy-camera collision detection
     //TODO: FIX ypos
-    if (fabs(enemyPosX - xpos) < 4 && fabs(enemyPosZ - zpos) < 4 && fabs(enemyPosY - ypos) < 4){
+    if (fabs(enemyPosX - xpos) < ENEMY_CAMERA_COLLISION_DISTANCE && fabs(enemyPosZ - zpos) < ENEMY_CAMERA_COLLISION_DISTANCE && fabs(enemyPosY - ypos) < ENEMY_CAMERA_COLLISION_DISTANCE){
+        enemyHP -=1;
         enemyTouchingPlayer = 1;
     }
     
@@ -1754,7 +1887,7 @@ void update_func()
         // where the laser starts
         laserStartX[numLasers] = xpos;
         laserStartZ[numLasers] = zpos;
-        laserStartY[numLasers] = ypos;
+        laserStartY[numLasers] = ypos + 3.1;
         
         // where the lasers position is at start
         laserPosX[numLasers] = laserStartX[numLasers];
@@ -1774,14 +1907,14 @@ void update_func()
             float xrotrad, yrotrad;
             yrotrad = (laserDirectionY[j] / 180 * 3.141592654f);
             xrotrad = (laserDirectionX[j] / 180 * 3.141592654f);
-            laserPosX[j] += (float)(sin(yrotrad)*1);
-            laserPosZ[j] -= (float)(cos(yrotrad)*1);
-            laserPosY[j] -= (float)(sin(xrotrad)*1);
+            laserPosX[j] += (float)(sin(yrotrad)*LASER_SPEED);
+            laserPosZ[j] -= (float)(cos(yrotrad)*LASER_SPEED);
+            laserPosY[j] -= (float)(sin(xrotrad)*LASER_SPEED);
         }
     }
     
-    // health box collision detection
-    if (fabs(xpos - healthX) < 2 && fabs(zpos - healthZ) < 2) {
+    // camera-health box collision detection
+    if (fabs(xpos - healthX) < AMMO_COLLISION_DISTANCE && fabs(zpos - healthZ) < AMMO_COLLISION_DISTANCE) {
         health[0] = health[1] = health[2] = health[3] = health[4] = health[5] = health[6] = health[7] = health[8] = health[9] = 0;
         playerHP = 30;
         healthX = 10000;
@@ -1888,8 +2021,8 @@ void update_func()
             float xrotrad, yrotrad;
             yrotrad = (yrot / 180 * 3.141592654f);
             xrotrad = (xrot / 180 * 3.141592654f);
-            xpos += (float)(sin(yrotrad)*0.1);
-            zpos -= (float)(cos(yrotrad)*0.1);
+            xpos += (float)(sin(yrotrad)*MOVEMENT_SPEED);
+            zpos -= (float)(cos(yrotrad)*MOVEMENT_SPEED);
             //ypos -= (float)(sin(xrotrad)*0.1); // uncomment for character flying ability
             
             
@@ -1907,8 +2040,8 @@ void update_func()
             float xrotrad, yrotrad;
             yrotrad = (yrot / 180 * 3.141592654f);
             xrotrad = (xrot / 180 * 3.141592654f);
-            xpos -= (float)(sin(yrotrad)*0.1);
-            zpos += (float)(cos(yrotrad)*0.1);
+            xpos -= (float)(sin(yrotrad)*MOVEMENT_SPEED);
+            zpos += (float)(cos(yrotrad)*MOVEMENT_SPEED);
             //ypos += (float)(sin(xrotrad)*0.1); // uncomment for character flying ability
             
             if (walkbiasangle <= 1.0f)                   // Is walkbiasangle<=1?
@@ -1924,8 +2057,8 @@ void update_func()
         {
             float yrotrad;
             yrotrad = (yrot / 180 * 3.141592654f);
-            xpos += (float)(cos(yrotrad)) * 0.1;
-            zpos += (float)(sin(yrotrad)) * 0.1;
+            xpos += (float)(cos(yrotrad)) * MOVEMENT_SPEED;
+            zpos += (float)(sin(yrotrad)) * MOVEMENT_SPEED;
             
             if (walkbiasangle >= 359.0f)                 // Is walkbiasangle>=359?
                 walkbiasangle = 0.0f;                   // Make walkbiasangle Equal 0
@@ -1941,8 +2074,8 @@ void update_func()
         {
             float yrotrad;
             yrotrad = (yrot / 180 * 3.141592654f);
-            xpos -= (float)(cos(yrotrad)) * 0.1;
-            zpos -= (float)(sin(yrotrad)) * 0.1;
+            xpos -= (float)(cos(yrotrad)) * MOVEMENT_SPEED;
+            zpos -= (float)(sin(yrotrad)) * MOVEMENT_SPEED;
             
             if (walkbiasangle <= 1.0f)                   // Is walkbiasangle<=1?
                 walkbiasangle = 359.0f;                 // Make walkbiasangle Equal 359
@@ -2039,6 +2172,7 @@ int main(int argc,char* argv[])
     gravelTexture = LoadTexBMP("gravelTexture.bmp");
     hoboTexture = LoadTexBMP("hoboTexture.bmp");
     crateTexture =LoadTexBMP("crateTexture.bmp");
+    outerWallTexture = LoadTexBMP("outerWallTexture.bmp");
     
     
     //  Pass control to GLUT so it can interact with the user
